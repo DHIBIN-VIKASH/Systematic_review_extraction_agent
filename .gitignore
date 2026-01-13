@@ -1,0 +1,53 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Browser profiles
+*_profile/
+msedge_profile/
+chrome_profile/
+
+# Output files
+extracted_studies.xlsx
+*.xlsx
+!GLP1_Meta_Analysis_Data_Extraction_Template*.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Debug files
+debug*.html
+debug*.png
+template_structure.json
+examine_templates.py
+template_analysis.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PDFs (keep directory structure)
+Articles/*.pdf
+Articles/Reviews/*.pdf
+
+# Logs
+*.log
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
