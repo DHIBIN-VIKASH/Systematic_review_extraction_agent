@@ -282,8 +282,8 @@ def main(limit=None, browser_channel="chrome", template_path=None):
             print("Login confirmed (Prompt area found). Proceeding immediately.")
         except:
              print("Login verification failed (Prompt area not found). assuming need to log in.")
-             print(f"Please log in to Gemini in the opened {browser_channel} window. Waiting 45 seconds...")
-             time.sleep(45)
+             print(f"Please log in to Gemini in the opened {browser_channel} window. Waiting 10 seconds...")
+             time.sleep(1)
 
         # Process Files
         for pdf_path in pdf_files:
