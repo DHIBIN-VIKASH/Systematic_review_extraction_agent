@@ -66,6 +66,27 @@ python gemini_extractor.py
 
 The script will use the default Word template and process all PDFs.
 
+### ⚡ Fast API Extraction (Recommended)
+The original browser-based extraction can be slow. We now offer a **direct API extraction** method using Google's free Gemini API. This method is significantly faster, more reliable, and recommended for most users.
+
+#### Setup
+1. Get a **Free API Key** from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Run the API extractor with your key:
+
+```bash
+python gemini_api_extractor.py --key "YOUR_API_KEY_HERE"
+```
+
+*Note: Replace `YOUR_API_KEY_HERE` with the actual key you generated.*
+
+#### Output
+Data extracted via the API method is saved to: **`extracted_studies_api.xlsx`**
+
+#### Options
+- `--key`: Your Google Gemini API Key (Required).
+- `--template`: Path to your custom template (default: `GLP1_Meta_Analysis_Data_Extraction_Template.docx`).
+- `--limit`: Limit the number of files to process (useful for testing).
+
 ### Using Custom Templates
 
 #### With Word Template
