@@ -1,215 +1,106 @@
-# Systematic Review Data Extraction Agent
+# 📄 Systematic Review Data Extraction Agent
 
-*Note: An extraction agent applies a predefined schema to capture key variables. Deterministic rules convert reported percentages into counts and standardise continuous outcomes. To enhance robustness, extraction tasks are subjected to cross-agent redundancy: two independent extraction agents process the same dataset using slightly different parsing strategies. Outputs are compared, and discrepancies are flagged for human adjudication. For entries with missing data, justification logs are generated, documenting the rationale for incomplete extraction and flagging these cases for human adjudication.*
+![Gemini](https://img.shields.io/badge/Gemini-2.0--Flash-blue)
+![Python](https://img.shields.io/badge/Python-3.8+-green)
+![Playwright](https://img.shields.io/badge/Playwright-1.40+-orange)
+![License](https://img.shields.io/badge/License-MIT-red)
 
-![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Playwright](https://img.shields.io/badge/playwright-1.40+-orange.svg)
+An intelligent agent that automates high-fidelity data extraction from PDF full-text articles for systematic reviews and meta-analyses. 
 
-An intelligent agent that automates data extraction from PDF full-text articles for systematic reviews and meta-analyses. It primarily uses the **Google Gemini API** for high-speed, structured extraction, with an alternative Playwright-based browser method available for manual-like interaction. Supports flexible template-based extraction with both **Word (.docx)** and **Excel (.xlsx)** template formats.
+> [!IMPORTANT]
+> **API-First Methodology**: This agent primarily uses the **Google Gemini API** for high-speed, structured extraction. A Playwright-based browser fallback is provided for manual-like interaction.
 
-## ✨ Features
+---
 
-- **🤖 AI-Powered Extraction**: Uses Google Gemini to intelligently extract structured data from PDF articles
-- **📋 Flexible Templates**: Define extraction fields using Word or Excel templates
-- **🔄 Auto-Detection**: Automatically detects and parses template format
-- **💾 Incremental Saving**: Saves progress after each file to prevent data loss
-- **🌐 Browser Automation**: Uses Playwright for reliable Gemini interaction
-- **📊 Excel Output**: Generates structured Excel files with extracted data
-- **🔁 Resume Support**: Automatically skips already-processed files
+## ✨ Key Features
 
-## 📋 Prerequisites
+- **🤖 AI-Powered Extraction**: Uses Google Gemini to intelligently extract structured data from PDF articles.
+- **📋 Flexible Templates**: Define extraction fields using **Word (.docx)** or **Excel (.xlsx)** templates.
+- **🔄 Auto-Detection**: Seamlessly switches between template formats.
+- **💾 Incremental Saving**: Saves progress after each file, ensuring no data loss during long runs.
+- **📊 Structured Excel Output**: Generates clean, ready-to-analyze Excel sheets.
+- **🔁 Resume Support**: Automatically skips already-processed files for efficient restarts.
 
+> [!NOTE]
+> Running the extraction and validation agents requires the user to have or input an API key. Google allows a certain amount of free credits for every user, which is more than sufficient for these extraction and validation purposes; you do not need to worry about costs for typical review workloads.
+
+---
+
+## 🚀 Getting Started
+
+### 📋 Prerequisites
 - **Python 3.8+**
-- **Google Account** (for Gemini access)
-- **Dependencies**: See `requirements.txt`
+- **Google AI Studio Key** ([Get it here](https://a studio.google.com/app/apikey))
+- **PDF Articles** (Placed in the `Articles/` directory)
 
-## 🚀 Installation
-
-### 1. Clone the Repository
-
+### 📦 Installation
 ```bash
 git clone https://github.com/DHIBIN-VIKASH/Systematic_review_extraction_agent.git
 cd Systematic_review_extraction_agent
-```
-
-### 2. Create Virtual Environment (Recommended)
-
-```bash
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# Linux/Mac
-source .venv/bin/activate
-```
-
-### 3. Install Dependencies
-
-```bash
 pip install -r requirements.txt
-```
-
-### 4. Install Playwright Browsers
-
-```bash
 playwright install chromium
 ```
+
+---
 
 ## 📖 Usage
 
 ### ⚡ Gemini API Extraction (Default & Recommended)
-This is the fastest and most reliable method. It uses Google's Gemini API directly.
-
-#### Setup
-1. Get a **Free API Key** from [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Run the extraction:
+This is the fastest method. It uploads PDFs directly to the API, bypassing browser overhead.
 
 ```bash
-python gemini_api_extractor.py --key "YOUR_API_KEY_HERE"
+python gemini_api_extractor.py --key "YOUR_API_KEY"
 ```
 
-#### Options
+**Options:**
 - `--key`: Your Google Gemini API Key (**Required**).
-- `--template`: Path to custom Word/Excel template (default: `GLP1_Meta_Analysis_Data_Extraction_Template.docx`).
+- `--template`: Path to custom template (defaults to `GLP1_Meta_Analysis_Data_Extraction_Template.docx`).
 - `--limit`: Process only the first N files.
-- `--single-pass`: Skip the dual-agent redundancy check (faster but less robust).
 
 ---
 
 ### 🌐 Browser-Based Extraction (Alternative)
-This method uses **Playwright** to interact with the Gemini web interface. It is slower and requires you to be logged into Gemini in your browser.
-
-1. **Place PDF articles** in the `Articles/` directory.
-2. **Run the extraction**:
+Uses **Playwright** to interact with the Gemini web interface. Slower but allows you to watch the process in real-time.
 
 ```bash
-python gemini_extractor.py
+python gemini_extractor.py --browser chrome
 ```
 
-#### Command-Line Options
+---
 
-```bash
-python gemini_extractor.py [OPTIONS]
+## 📝 Custom Templates
 
-Options:
-  --template PATH    Path to template file (.docx or .xlsx)
-  --limit N          Process only first N files
-  --browser BROWSER  Browser to use (chrome or msedge)
-```
-
-## 📝 Creating Templates
-
-### Word Template Format
-
-Create a `.docx` file with field definitions in this format:
-
-```
-Study Identification
-
-Study ID:
-First Author:
-Year:
-Journal:
-
+### Word Templates (.docx)
+Structure your document with sections and fields ending in a colon:
+```text
 Baseline Characteristics
-
 Age (Mean ± SD):
 BMI (Mean ± SD):
 ```
 
-- **Section headers**: Plain text without colons
-- **Field definitions**: Field name followed by colon
-- **Descriptions**: Optional text after the colon
+### Excel Templates (.xlsx)
+Simply create an Excel file where the first row contains the **Column Headers** representing your extraction fields.
 
-### Excel Template Format
+---
 
-Create an `.xlsx` file with:
-- **Column headers** as field names
-- Each column represents one extraction field
-- First row contains field names
+## 📁 Project Structure
 
-### Inspecting Templates
-
-Use the inspection utility to view template structure:
-
-```bash
-python inspect_template.py template.docx
-python inspect_template.py template.xlsx --verbose
-```
-
-## 🔧 How It Works
-
-1. **Template Loading**: Parses your template file to extract field definitions
-2. **Browser Launch**: Opens a persistent browser session with Gemini
-3. **PDF Upload**: For each PDF, uploads to Gemini and sends extraction prompt
-4. **Data Extraction**: Gemini analyzes the PDF and returns structured JSON
-5. **Excel Export**: Saves extracted data to `extracted_studies.xlsx`
-6. **Progress Tracking**: Remembers processed files for resume capability
-
-## 🛠️ Troubleshooting
-
-### Login Issues
-
-If the script can't find the upload button:
-- Ensure you're logged into Google Gemini in the browser window
-- Wait for the page to fully load before the script continues
-- Check that your Google account has Gemini access
-
-### Template Errors
-
-```bash
-# Validate your template
-python inspect_template.py your_template.docx
-```
-
-If no fields are found:
-- Check that field names end with colons (Word templates)
-- Verify column headers exist (Excel templates)
-- Ensure the file isn't corrupted
-
-### Browser Issues
-
-```bash
-# Try a different browser
-python gemini_extractor.py --browser msedge
-
-# Reinstall Playwright browsers
-playwright install --force chromium
-```
-
-## 📚 Project Structure
-
-```
+```text
 Systematic_review_extraction_agent/
-├── gemini_extractor.py              # Main extraction script
-├── template_parser.py               # Template parsing module
-├── inspect_template.py              # Template inspection utility
-├── Articles/                        # Place PDFs here
-├── GLP1_Meta_Analysis_Data_Extraction_Template.docx
-├── GLP1_Meta_Analysis_Data_Extraction_Template (1).xlsx
-├── requirements.txt
-├── LICENSE
-└── README.md
+├── gemini_api_extractor.py     # High-speed API script
+├── gemini_extractor.py         # Browser-based fallback script
+├── template_parser.py          # Logic for reading Word/Excel templates
+├── Articles/                   # Place research PDFs here
+└── requirements.txt            # Python dependencies
 ```
 
-## 🤝 Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+---
 
 ## 📄 License
-
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- **Google Gemini** for AI-powered extraction
-- **Playwright** for browser automation
-- Built for systematic review researchers and meta-analysts
-
 ## 📧 Citation
-
 If you use this tool in your research, please cite:
-
 ```bibtex
 @software{systematic_review_extraction_agent,
   author = {DHIBIN-VIKASH},
@@ -219,9 +110,9 @@ If you use this tool in your research, please cite:
 }
 ```
 
-## 🐛 Issues & Support
-
-Found a bug or have a feature request? Please open an issue on [GitHub Issues](https://github.com/DHIBIN-VIKASH/Systematic_review_extraction_agent/issues).
+---
+**Made with ❤️ for systematic review researchers**
+m/DHIBIN-VIKASH/Systematic_review_extraction_agent/issues).
 
 ---
 
