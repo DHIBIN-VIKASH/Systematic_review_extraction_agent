@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Playwright](https://img.shields.io/badge/playwright-1.40+-orange.svg)
 
-An intelligent agent that automates data extraction from PDF full-text articles for systematic reviews and meta-analyses using Google Gemini AI. Supports flexible template-based extraction with both **Word (.docx)** and **Excel (.xlsx)** template formats.
+An intelligent agent that automates data extraction from PDF full-text articles for systematic reviews and meta-analyses. It primarily uses the **Google Gemini API** for high-speed, structured extraction, with an alternative Playwright-based browser method available for manual-like interaction. Supports flexible template-based extraction with both **Word (.docx)** and **Excel (.xlsx)** template formats.
 
 ## ✨ Features
 
@@ -57,67 +57,44 @@ playwright install chromium
 
 ## 📖 Usage
 
-### Quick Start
+### ⚡ Gemini API Extraction (Default & Recommended)
+This is the fastest and most reliable method. It uses Google's Gemini API directly.
 
-1. **Place PDF articles** in the `Articles/` directory
+#### Setup
+1. Get a **Free API Key** from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Run the extraction:
+
+```bash
+python gemini_api_extractor.py --key "YOUR_API_KEY_HERE"
+```
+
+#### Options
+- `--key`: Your Google Gemini API Key (**Required**).
+- `--template`: Path to custom Word/Excel template (default: `GLP1_Meta_Analysis_Data_Extraction_Template.docx`).
+- `--limit`: Process only the first N files.
+- `--single-pass`: Skip the dual-agent redundancy check (faster but less robust).
+
+---
+
+### 🌐 Browser-Based Extraction (Alternative)
+This method uses **Playwright** to interact with the Gemini web interface. It is slower and requires you to be logged into Gemini in your browser.
+
+1. **Place PDF articles** in the `Articles/` directory.
 2. **Run the extraction**:
 
 ```bash
 python gemini_extractor.py
 ```
 
-The script will use the default Word template and process all PDFs.
-
-### ⚡ Fast API Extraction (Recommended)
-The original browser-based extraction can be slow. We now offer a **direct API extraction** method using Google's free Gemini API. This method is significantly faster, more reliable, and recommended for most users.
-
-#### Setup
-1. Get a **Free API Key** from [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Run the API extractor with your key:
-
-```bash
-python gemini_api_extractor.py --key "YOUR_API_KEY_HERE"
-```
-
-*Note: Replace `YOUR_API_KEY_HERE` with the actual key you generated.*
-
-#### Output
-Data extracted via the API method is saved to: **`extracted_studies_api.xlsx`**
-
-#### Options
-- `--key`: Your Google Gemini API Key (Required).
-- `--template`: Path to your custom template (default: `GLP1_Meta_Analysis_Data_Extraction_Template.docx`).
-- `--limit`: Limit the number of files to process (useful for testing).
-
-### Using Custom Templates
-
-#### With Word Template
-
-```bash
-python gemini_extractor.py --template my_template.docx
-```
-
-#### With Excel Template
-
-```bash
-python gemini_extractor.py --template my_template.xlsx
-```
-
-### Command-Line Options
+#### Command-Line Options
 
 ```bash
 python gemini_extractor.py [OPTIONS]
 
 Options:
   --template PATH    Path to template file (.docx or .xlsx)
-                     Default: GLP1_Meta_Analysis_Data_Extraction_Template.docx
-  --limit N          Process only first N files (for testing)
+  --limit N          Process only first N files
   --browser BROWSER  Browser to use (chrome or msedge)
-                     Default: chrome
-
-Examples:
-  python gemini_extractor.py --limit 5
-  python gemini_extractor.py --template custom.xlsx --browser msedge
 ```
 
 ## 📝 Creating Templates
