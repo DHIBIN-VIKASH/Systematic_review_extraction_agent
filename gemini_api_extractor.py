@@ -15,6 +15,52 @@ DISCREPANCY_FILE = 'extraction_discrepancies.xlsx'
 AUDIT_LOG_FILE = 'extraction_audit_log.json'
 DEFAULT_TEMPLATE = 'GLP1_Meta_Analysis_Data_Extraction_Template.docx'
 MODEL_NAME = "models/gemini-2.0-flash"
+# Fallbacks tried (in order) if the primary model is unavailable for the key.
+MODEL_CANDIDATES = [
+    "models/gemini-2.0-flash",
+    "models/gemini-2.5-flash",
+    "models/gemini-1.5-flash",
+    "models/gemini-flash-latest",
+]
+
+
+def resolve_model():
+    """Pick the first candidate model that the configured key can actually call.
+    Sets and returns the global MODEL_NAME."""
+    global MODEL_NAME
+    for name in MODEL_CANDIDATES:
+        try:
+            genai.GenerativeModel(name).generate_content("ping")
+            MODEL_NAME = name
+            print(f"Using model: {name}")
+            return name
+        except exceptions.NotFound:
+            print(f"Model unavailable (404): {name}")
+        except exceptions.ResourceExhausted:
+            # Quota hit but the model exists — good enough to select it.
+            MODEL_NAME = name
+            print(f"Using model: {name} (quota-limited)")
+            return name
+        except Exception as e:
+            print(f"Model {name} failed probe: {type(e).__name__}")
+    print(f"Warning: no candidate model verified; falling back to {MODEL_NAME}")
+    return MODEL_NAME
+
+
+def _values_equal(v1, v2):
+    """Compare two extracted values, treating numerically-equal strings
+    (e.g. '5' vs '5.0', '1,000' vs '1000') as equal to avoid spurious
+    discrepancy flags."""
+    if v1 is None or v2 is None:
+        return v1 is None and v2 is None
+    s1 = str(v1).strip().lower()
+    s2 = str(v2).strip().lower()
+    if s1 == s2:
+        return True
+    try:
+        return float(s1.replace(',', '')) == float(s2.replace(',', ''))
+    except (ValueError, TypeError):
+        return False
 
 # Global variable to store template fields
 TEMPLATE_FIELDS = None
@@ -166,12 +212,9 @@ def compare_extractions(pass1_data, pass2_data, source_file):
                 'justification': pass2_data[justification_key]
             })
         
-        # Normalize for comparison
-        v1_str = str(v1).strip().lower() if v1 is not None else None
-        v2_str = str(v2).strip().lower() if v2 is not None else None
-        
-        if v1_str == v2_str:
-            # Agreement — use Pass 1 value (preserves original casing)
+        if _values_equal(v1, v2):
+            # Agreement (including numeric equality like 5 vs 5.0) —
+            # use Pass 1 value to preserve original casing/formatting.
             merged[key] = v1
         elif v1 is None and v2 is not None:
             # Pass 1 missed it, use Pass 2
@@ -213,7 +256,10 @@ def compare_extractions(pass1_data, pass2_data, source_file):
 def main(api_key, limit=None, template_path=None, dual_pass=True):
     # Configure API
     genai.configure(api_key=api_key)
-    
+
+    # Select a model this key can actually use.
+    resolve_model()
+
     # Load Template
     if template_path is None:
         template_path = DEFAULT_TEMPLATE
@@ -385,11 +431,16 @@ def main(api_key, limit=None, template_path=None, dual_pass=True):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract data using Gemini API with dual-pass redundancy")
-    parser.add_argument("--key", help="Gemini API Key", required=True)
+    parser.add_argument("--key", help="Gemini API Key (or set GEMINI_API_KEY env var)", default=None)
     parser.add_argument("--template", help="Path to template file", default=DEFAULT_TEMPLATE)
     parser.add_argument("--limit", help="Limit number of files", default=None)
     parser.add_argument("--single-pass", action="store_true",
                         help="Run single pass only (skip cross-agent redundancy)")
     args = parser.parse_args()
-    
-    main(args.key, args.limit, args.template, dual_pass=not args.single_pass)
+
+    # Prefer the env var so the key never lands in shell history / process list.
+    api_key = args.key or os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        parser.error("No API key provided. Pass --key or set the GEMINI_API_KEY environment variable.")
+
+    main(api_key, args.limit, args.template, dual_pass=not args.single_pass)

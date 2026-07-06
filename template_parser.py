@@ -17,7 +17,26 @@ import os
 import re
 from typing import List, Dict, Optional
 import docx
+from docx.table import Table
+from docx.text.paragraph import Paragraph
+from docx.oxml.table import CT_Tbl
+from docx.oxml.text.paragraph import CT_P
 import pandas as pd
+
+
+def _iter_block_items(doc):
+    """Yield each Paragraph and Table in document order.
+
+    python-docx exposes paragraphs and tables as separate collections, which
+    loses their relative position. Iterating the body's XML children preserves
+    ordering so a table is parsed under the section heading that precedes it.
+    """
+    body = doc.element.body
+    for child in body.iterchildren():
+        if isinstance(child, CT_P):
+            yield Paragraph(child, doc)
+        elif isinstance(child, CT_Tbl):
+            yield Table(child, doc)
 
 
 class TemplateField:
@@ -61,42 +80,45 @@ class WordTemplateParser(TemplateParser):
     FIELD_PATTERN = r'^(.+?):\s*(.*)$'
     
     def parse(self, filepath: str) -> List[TemplateField]:
-        """Parse Word template and extract fields."""
+        """Parse Word template and extract fields.
+
+        Paragraphs and tables are walked in document order so each table's
+        fields are attributed to the section heading that actually precedes it.
+        """
         doc = docx.Document(filepath)
         fields = []
         current_section = ""
-        
-        for para in doc.paragraphs:
-            text = para.text.strip()
-            if not text:
-                continue
-            
-            # Check if this is a section header
-            if self._is_section_header(text):
-                current_section = text
-                continue
-            
-            # Check if this is a field definition
-            field_match = re.match(self.FIELD_PATTERN, text)
-            if field_match:
-                field_name = field_match.group(1).strip()
-                field_desc = field_match.group(2).strip()
-                
-                # Skip if it looks like a title
-                if self._is_likely_title(field_name):
+
+        for block in _iter_block_items(doc):
+            if isinstance(block, Paragraph):
+                text = block.text.strip()
+                if not text:
                     continue
-                
-                fields.append(TemplateField(
-                    name=field_name,
-                    description=field_desc,
-                    section=current_section
-                ))
-        
-        # Also check tables in Word document
-        for table in doc.tables:
-            table_fields = self._parse_table(table, current_section)
-            fields.extend(table_fields)
-        
+
+                # Check if this is a section header
+                if self._is_section_header(text):
+                    current_section = text
+                    continue
+
+                # Check if this is a field definition
+                field_match = re.match(self.FIELD_PATTERN, text)
+                if field_match:
+                    field_name = field_match.group(1).strip()
+                    field_desc = field_match.group(2).strip()
+
+                    # Skip if it looks like a title
+                    if self._is_likely_title(field_name):
+                        continue
+
+                    fields.append(TemplateField(
+                        name=field_name,
+                        description=field_desc,
+                        section=current_section
+                    ))
+
+            elif isinstance(block, Table):
+                fields.extend(self._parse_table(block, current_section))
+
         return fields
     
     def _is_section_header(self, text: str) -> bool:

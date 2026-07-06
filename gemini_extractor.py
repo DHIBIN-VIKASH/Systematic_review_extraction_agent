@@ -1,5 +1,6 @@
 
 import os
+import re
 import time
 import json
 import pandas as pd
@@ -65,6 +66,38 @@ def create_prompt():
     prompt += "\nCRUCIAL: Verify the extracted data against the PDF one more time before outputting to ensure accuracy. Return ONLY the JSON object, no markdown formatting."
     return prompt
 
+def _parse_json_response(text):
+    """Extract a JSON object from a model response.
+
+    Tries a fenced ```json ... ``` block first, then the outermost { ... }
+    span. Returns a dict, or None if nothing parses.
+    """
+    if not text:
+        return None
+
+    candidates = []
+
+    # 1) Fenced code block(s).
+    for m in re.finditer(r"```(?:json)?\s*(.*?)```", text, re.DOTALL | re.IGNORECASE):
+        candidates.append(m.group(1).strip())
+
+    # 2) Outermost brace span.
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        candidates.append(text[start:end + 1])
+
+    for cand in candidates:
+        try:
+            parsed = json.loads(cand)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            continue
+
+    return None
+
+
 def extract_data_from_page(page, pdf_path, prompt_text):
     print(f"[{os.path.basename(pdf_path)}] Navigating to Gemini...")
     page.goto(GEMINI_URL)
@@ -83,13 +116,6 @@ def extract_data_from_page(page, pdf_path, prompt_text):
                  # Check for icon text 'add'
                  plus_button = page.locator("span.material-symbols-outlined:has-text('add'), span.material-icons-outlined:has-text('add'), mat-icon:has-text('add'), mat-icon:has-text('add_circle')").locator("..").locator("..")
 
-            if plus_button.count() == 0:
-                 # Fallback: Just try to click the first button in the input area footer
-                 # This is risky but "not clicking anything" is worse
-                 print("Trying fallback footer button...")
-                 footer = page.locator("bard-mode-switcher").locator("..") # Approximate
-                 # No, too complex.
-            
             if plus_button.count() > 0:
                 print("Found Plus button.")
                 try:
@@ -148,17 +174,14 @@ def extract_data_from_page(page, pdf_path, prompt_text):
         else:
             last_response = page.content()
 
-        # Parse JSON
-        start = last_response.find('{')
-        end = last_response.rfind('}') + 1
-        if start != -1 and end != -1:
-            json_str = last_response[start:end]
-            data = json.loads(json_str)
+        # Parse JSON. Prefer a fenced ```json block if present, else fall back
+        # to the outermost brace span.
+        data = _parse_json_response(last_response)
+        if data is not None:
             data['Source File'] = os.path.basename(pdf_path)
-            # data['_tab'] = ... # internal use
             return data
         else:
-            print(f"[{os.path.basename(pdf_path)}] No JSON found in response.")
+            print(f"[{os.path.basename(pdf_path)}] No valid JSON found in response.")
             return None
 
     except Exception as e:
@@ -210,23 +233,20 @@ def main(limit=None, browser_channel="chrome", template_path=None):
             existing_df = pd.read_excel(OUTPUT_FILE)
             if 'Source File' in existing_df.columns:
                 processed_files = set(existing_df['Source File'].dropna().astype(str).tolist())
-                # Normalize basenames for comparison
-                processed_basenames = {os.path.basename(f) for f in processed_files}
-                
-                # Filter out files whose basename matches processed files (or variants like "file (Run 2A)")
-                # Actually, our Source File just stores the basename or basename + suffix.
-                # A simple basename check might be best if we just strip suffixes.
-                # But 'A Fano 2025.pdf (Run 2A)' implies 'A Fano 2025.pdf' was processed.
-                
-                # Better approach: check if original filename is contained in any processed source file string
-                files_to_skip = []
-                for pf in pdf_files:
-                    basename = os.path.basename(pf)
-                    # Check if this basename appears in any recorded source file entry
-                    if any(basename in str(recorded) for recorded in processed_files):
-                        files_to_skip.append(pf)
-                
-                original_count = len(pdf_files)
+                # The recorded 'Source File' may carry a run suffix, e.g.
+                # "A Fano 2025.pdf (Run 2A)". Reduce each record to the leading
+                # "<name>.pdf" so we skip on an exact filename match rather than a
+                # loose substring test (which wrongly skips "Fano.pdf" when
+                # "Fano2.pdf" was processed).
+                processed_basenames = set()
+                for recorded in processed_files:
+                    rec = os.path.basename(str(recorded))
+                    m = re.match(r'(.+?\.pdf)', rec, re.IGNORECASE)
+                    processed_basenames.add(m.group(1) if m else rec)
+
+                files_to_skip = [pf for pf in pdf_files
+                                 if os.path.basename(pf) in processed_basenames]
+
                 pdf_files = [f for f in pdf_files if f not in files_to_skip]
                 print(f"Skipping {len(files_to_skip)} already processed files. {len(pdf_files)} remaining.")
         except Exception as e:
@@ -282,8 +302,8 @@ def main(limit=None, browser_channel="chrome", template_path=None):
             print("Login confirmed (Prompt area found). Proceeding immediately.")
         except:
              print("Login verification failed (Prompt area not found). assuming need to log in.")
-             print(f"Please log in to Gemini in the opened {browser_channel} window. Waiting 10 seconds...")
-             time.sleep(1)
+             print(f"Please log in to Gemini in the opened {browser_channel} window. Waiting 60 seconds...")
+             time.sleep(60)
 
         # Process Files
         for pdf_path in pdf_files:
